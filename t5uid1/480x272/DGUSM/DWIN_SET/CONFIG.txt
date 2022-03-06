@@ -1,4 +1,4 @@
-R1=07      ;Band Rate,07=115200
+R1=0c      ;Band Rate,0c=250000
 R2=28      ;Sys_CFG
 R3=5A      ;
 R6=40      ;
