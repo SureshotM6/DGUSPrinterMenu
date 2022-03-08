@@ -77,8 +77,6 @@ TODO: 32 and higher
 # .plan
 
 - Finish fixing text boxes
-- Fix double beeps
-- Remove the gradient (doesn't display well).  Replace with 2 icons (left and right side tied to same VP).
 - Widen some of the backgrounds so text isn't on the edge
 - Make "Message" area scroll or increase characters
 - Add temperature graph
@@ -93,4 +91,3 @@ TODO: 32 and higher
 - Make it easier to access pause / stop buttons?
 - Add 1 decimal place to temperatures
 - We can make beep longer than 2.55 seconds by reloading timer register manually.
-- M300 is not integrating with G4 (dwell) command
