@@ -72,3 +72,25 @@ Vertical Scale / Shift: 1 / 0
 
 TODO: 32 and higher
 34 done
+
+
+# .plan
+
+- Finish fixing text boxes
+- Fix double beeps
+- Remove the gradient (doesn't display well).  Replace with 2 icons (left and right side tied to same VP).
+- Widen some of the backgrounds so text isn't on the edge
+- Make "Message" area scroll or increase characters
+- Add temperature graph
+- See if "basic graphic display" would work for drawing custom screens
+- Write a utility to dump .bin files to verify VPs, locations, and generate the controls.cfg file
+- Icons on status page should do something (like being able to set temp / fan)
+- Consolidate similar VPs from different pages at same addresses
+- Left align menus?
+- Make entire interface / text bigger?
+- Use colors with more constrast
+- Disabled up/down arrows should be invisible, not just darker.  The difference is minimal now.
+- Make it easier to access pause / stop buttons?
+- Add 1 decimal place to temperatures
+- We can make beep longer than 2.55 seconds by reloading timer register manually.
+- M300 is not integrating with G4 (dwell) command
