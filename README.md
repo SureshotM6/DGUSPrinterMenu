@@ -1,3 +1,9 @@
+# Mini DGUS fork
+
+Updates to support Mini DGUS.  See [this
+repository](https://github.com/SureshotM6/klipper/tree/dgus-display) for
+code and more info.
+
 # DGUSPrinterMenu
 
 DGUS touchscreen firmware for 3D printers running Klipper with support for custom menus.
