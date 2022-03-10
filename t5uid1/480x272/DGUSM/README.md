@@ -41,21 +41,21 @@ Vertical Scale / Shift: 1 / 0
 ## Boxes that are 262x20 (32 chars)
 
 - W = 320
-- Move left by 6
+- X = 80 to center
 
 ## "Title" boxes 102x16 (16 chars)
 
-- X = 130
+- X = 131
 - W = 128
 
 ## "Value" boxes 130x20 (16 chars)
 
-- X = 130
+- X = 131
 - W = 160
 
 ## "Unit" boxes 48x20 (6 chars)
 
-- X = 289
+- X = 288
 - W = 60
 
 ## "Button" boxes 130x20 (16 chars)
@@ -70,13 +70,8 @@ Vertical Scale / Shift: 1 / 0
 - Move left by 6
 
 
-TODO: 32 and higher
-34 done
-
-
 # .plan
 
-- Finish fixing text boxes
 - Widen some of the backgrounds so text isn't on the edge
 - Make "Message" area scroll or increase characters
 - Add temperature graph
