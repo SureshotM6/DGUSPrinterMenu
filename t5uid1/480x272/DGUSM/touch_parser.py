@@ -38,10 +38,8 @@ class TouchArea(BigEndianStructure):
 
     type_map = {}
 
-    @classmethod
-    def register(cls, sub) -> object:
-        cls.type_map.update(dict.fromkeys(sub.type_codes, sub))
-        return sub
+    def __init_subclass__(cls) -> None:
+        cls.type_map.update(dict.fromkeys(cls.type_codes, cls))
 
     def get_subclass(self) -> object:
         return self.type_map[self.type]
@@ -74,7 +72,6 @@ class Key:
         else:
             return':0x{:02x}'.format(self.code)
 
-@TouchArea.register
 class KeypadKey(TouchArea):
     type_codes = (0x00,)
 
@@ -85,7 +82,6 @@ class KeypadKey(TouchArea):
     def __str__(self) -> str:
         return 'keypad:{}'.format(self.key)
 
-@TouchArea.register
 class KeyboardKey(TouchArea):
     type_codes = range(1, 0x7f)
 
@@ -97,7 +93,6 @@ class KeyboardKey(TouchArea):
     def __str__(self) -> str:
         return 'keyboard:⇩{}⇧{}'.format(self.lower, self.upper)
 
-@TouchArea.register
 class TouchControl(TouchArea):
     _pack_ = 1
     _fields_ = [("_continue0", c_uint8),
@@ -106,10 +101,8 @@ class TouchControl(TouchArea):
     type_codes = (0xfd, 0xfe)
     subtypes = {}
 
-    @classmethod
-    def register(cls, sub) -> object:
-        cls.subtypes[sub.subtype_code] = sub
-        return sub
+    def __init_subclass__(cls) -> None:
+        cls.subtypes[cls.subtype_code] = cls
 
     @classmethod
     def debug_print_sizes(cls):
@@ -124,7 +117,6 @@ class TouchControl(TouchArea):
     def __str__(self) -> str:
         return 'control:{}'.format(self.__class__.__name__)
 
-@TouchControl.register
 class NumericInput(TouchControl):
     subtype_code = 0x00
     _pack_ = 1
@@ -148,7 +140,6 @@ class NumericInput(TouchControl):
                 ("limit_max", c_int32),
                 ("_reserved", c_uint8 * 6)]
 
-@TouchControl.register
 class SliderInput(TouchControl):
     subtype_code = 0x03
     _pack_ = 1
@@ -158,7 +149,6 @@ class SliderInput(TouchControl):
                 ("min", c_uint16),
                 ("max", c_uint16)]
 
-@TouchControl.register
 class ButtonInput(TouchControl):
     subtype_code = 0x05
     _pack_ = 1
@@ -167,7 +157,6 @@ class ButtonInput(TouchControl):
                 ("keycode", c_uint16),
                 ("_reserved", c_uint8 * 10)]
 
-@TouchControl.register
 class TextInput(TouchControl):
     subtype_code = 0x06
     _pack_ = 1
