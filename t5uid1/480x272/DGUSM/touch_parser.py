@@ -1,53 +1,14 @@
 from mmap import *
 from pathlib import Path
 from ctypes import *
-
-class VP:
-    def __init__(self, word_addr=None, size=None) -> None:
-        self.addr = word_addr * 2 if word_addr is not None else None
-        self.size = size
-        self.bit = None
-
-    def set_bit_mode(self, bit):
-        assert self.bit is None and bit in range(16)
-        self.bit = bit
-        self.size = 1
-        if bit < 8:
-            self.addr_bytes += 1
-        else:
-            bit -= 8
-
-    def __str__(self) -> str:
-        if self.bit is None:
-            return 'VP {:04x} +{:x}'.format(self.addr, self.size)
-        else:
-            return 'VP {:04x} b{}'.format(self.addr, self.bit)
-
-class Coord(BigEndianStructure):
-    _pack_ = 1
-    _fields_ = [("x", c_uint16),
-                ("y", c_uint16)]
-
-    def __sub__(self, other):
-        return Coord(self.x - other.x, self.y - other.y)
-
-    def __str__(self) -> str:
-        return '({:3},{:3})'.format(self.x, self.y)
-
-class Area(BigEndianStructure):
-    _pack_ = 1
-    _fields_ = [("start", Coord),
-                ("end", Coord)]
-
-    def __str__(self) -> str:
-        return '@{} +{}'.format(self.start, self.end - self.start)
+from dgus_common import *
 
 class TouchArea(BigEndianStructure):
     _pack_ = 1
-    _fields_ = [("pic", c_uint16),
+    _fields_ = [("pic", Pic),
                 ("area", Area),
-                ("pic_next", c_uint16),
-                ("pic_press", c_uint16),
+                ("pic_next", Pic),
+                ("pic_press", Pic),
                 ("type", c_uint8),
                 ("subtype", c_uint8)]
 
@@ -63,10 +24,10 @@ class TouchArea(BigEndianStructure):
         return cls.from_buffer(buf, off)
 
     def __init__(self, buf, off) -> None:
-        pass
+        assert sizeof(TouchArea) == 0x10
 
     def __str__(self) -> str:
-        return 'P{:<3} {}'.format(self.pic, self.area)
+        return '{} {}'.format(self.pic, self.area)
 
 class Key:
     special_keycodes = {
@@ -90,7 +51,7 @@ class Key:
         else:
             return ':0x{:02x}'.format(self.code)
 
-class KeypadKey(TouchArea):
+class NumpadKey(TouchArea):
     type_codes = (0x00,)
 
     def __init__(self, buf, off) -> None:
@@ -98,7 +59,7 @@ class KeypadKey(TouchArea):
         self.key = Key(self.subtype)
 
     def __str__(self) -> str:
-        return '{} keypad:{}'.format(super().__str__(), self.key)
+        return '{} numpad:{}'.format(super().__str__(), self.key)
 
 class KeyboardKey(TouchArea):
     type_codes = range(1, 0x80)
@@ -114,50 +75,45 @@ class KeyboardKey(TouchArea):
 class TouchControl(TouchArea):
     _pack_ = 1
     _fields_ = [("_continue0", c_uint8),
-                ("vp_words", c_uint16)]
+                ("vp_word", c_uint16)]
 
     type_codes = (0xfd, 0xfe)
     subtypes = {}
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        self.vp = VP(self.vp_words)
+        self.vp = VP(self.vp_word)
+        if self.__class__ is not TouchControl:
+            assert sizeof(self) in (0x20, 0x30, 0x40)
 
     def __init_subclass__(cls) -> None:
         cls.subtypes[cls.subtype_code] = cls
-
-    @classmethod
-    def debug_print_sizes(cls):
-        assert sizeof(TouchArea) == 0x10
-        for v in cls.subtypes.values():
-            print(v.__name__, sizeof(v))
-            assert sizeof(v) in (0x20, 0x30, 0x40)
 
     def get_subclass(self) -> object:
         return self.subtypes[self.subtype]
 
     def __str__(self) -> str:
-        return '{} control:{} {}'.format(super().__str__(), self.__class__.__name__, self.vp)
+        return '{} ctl:{:<8} {}'.format(super().__str__(), self.__class__.__name__, self.vp)
 
-class NumericInput(TouchControl):
+class Numpad(TouchControl):
     subtype_code = 0x00
     _pack_ = 1
     _fields_ = [("vp_format", c_uint8),
                 ("int_digits", c_uint8),
                 ("dec_digits", c_uint8),
                 ("cursor_pos", Coord),
-                ("font_color", c_uint16),
+                ("font_color", Color),
                 ("font", c_uint8),
                 ("font_x", c_uint8),
-                ("cursor_color", c_uint8),
-                ("unmasked", c_uint8),
+                ("cursor_white", Bool),
+                ("unmasked", Bool),
                 ("_continue1", c_uint8),
-                ("kbd_elsewhere", c_uint8),
-                ("kbd_pic", c_uint16),
+                ("kbd_elsewhere", Bool),
+                ("kbd_pic", Pic),
                 ("kbd_area", Area),
                 ("kbd_pos", Coord),
                 ("_continue2", c_uint8),
-                ("limits_en", c_uint8),
+                ("limits_en", Bool),
                 ("limit_min", c_int32),
                 ("limit_max", c_int32),
                 ("_reserved", c_uint8 * 6)]
@@ -178,11 +134,11 @@ class NumericInput(TouchControl):
         else:
             raise ValueError(self.vp_format)
 
-class SliderInput(TouchControl):
+class Slider(TouchControl):
     subtype_code = 0x03
     _pack_ = 1
     _fields_ = [("vp_format", c_uint8, 4),
-                ("direction", c_uint8, 4),
+                ("vertical", Bool, 4),
                 ("area", Area),
                 ("min", c_uint16),
                 ("max", c_uint16)]
@@ -199,10 +155,10 @@ class SliderInput(TouchControl):
         else:
             raise ValueError(self.vp_format)
 
-class ButtonInput(TouchControl):
+class Button(TouchControl):
     subtype_code = 0x05
     _pack_ = 1
-    _fields_ = [("bit_mode", c_uint8, 4),
+    _fields_ = [("bit_mode", Bool, 4),
                 ("vp_format", c_uint8, 4),
                 ("keycode", c_uint16),
                 ("_reserved", c_uint8 * 10)]
@@ -222,33 +178,33 @@ class ButtonInput(TouchControl):
             else:
                 raise ValueError(self.vp_format)
 
-class TextInput(TouchControl):
+class Keyboard(TouchControl):
     subtype_code = 0x06
     _pack_ = 1
     _fields_ = [("vp_len_words", c_uint8),
-                ("modify", c_uint8),
+                ("modify", Bool),
                 ("font", c_uint8),
                 ("font_x", c_uint8),
                 ("font_y", c_uint8),
-                ("cursor_color", c_uint8),
-                ("color", c_uint16),
+                ("cursor_white", Bool),
+                ("color", Color),
                 ("text_pos", Coord),
-                ("prefix_len", c_uint8),
+                ("use_len_prefix", Bool),
                 ("_continue1", c_uint8),
                 ("text_pos_end", Coord),
-                ("kbd_elsewhere", c_uint8),
-                ("kbd_pic", c_uint16),
+                ("kbd_elsewhere", Bool),
+                ("kbd_pic", Pic),
                 ("kbd_area", Area),
                 ("_continue2", c_uint8),
                 ("kbd_pos", Coord),
-                ("unmasked", c_uint8),
+                ("unmasked", Bool),
                 ("_reserved", c_uint8 * 10)]
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
         #FIXME: is this +1 correct?
         self.vp.size = (self.vp_len_words + 1) * 2
-        if self.prefix_len:
+        if self.use_len_prefix:
             self.vp.addr -= 2
             self.vp.size += 2
 
@@ -265,8 +221,6 @@ class Parser:
     def __init__(self, dirname):
         d = Path(dirname) / 'DWIN_SET'
         filename = next(d.glob('13*.bin'))
-
-        #TouchControl.debug_print_sizes()
 
         self.controls = []
 
