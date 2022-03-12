@@ -1,7 +1,8 @@
+import argparse
 from mmap import *
 from pathlib import Path
 from ctypes import *
-from dgus_common import *
+from .common import *
 
 class TouchArea(BigEndianStructure):
     _pack_ = 1
@@ -242,5 +243,8 @@ class Parser:
 
 
 if __name__ == "__main__":
-    for c in Parser('.'):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('basedir', nargs='?', type=Path, default='../dgusm')
+    args = parser.parse_args()
+    for c in Parser(args.basedir):
         print(c)

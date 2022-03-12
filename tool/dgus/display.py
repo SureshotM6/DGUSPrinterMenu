@@ -1,8 +1,8 @@
+import argparse
 from mmap import *
 from pathlib import Path
 from ctypes import *
-from tkinter import Variable
-from dgus_common import *
+from .common import *
 
 class DisplayVariable(BigEndianStructure):
     _pack_ = 1
@@ -32,12 +32,6 @@ class DisplayVariable(BigEndianStructure):
 
     def __str__(self) -> str:
         return '{} {} {:<7} {}'.format(self.pic, self.area, self.__class__.__name__, self.vp)
-
-# BitIcon 06
-# Numeric 10 -- not used?
-# Text 11
-
-# 00 02 11 06
 
 class Icon(DisplayVariable):
     type_code = 0x00
@@ -197,5 +191,8 @@ class Parser:
 
 
 if __name__ == "__main__":
-    for c in Parser('.'):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('basedir', nargs='?', type=Path, default='../dgusm')
+    args = parser.parse_args()
+    for c in Parser(args.basedir):
         print(c)
