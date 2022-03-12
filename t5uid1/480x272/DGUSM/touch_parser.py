@@ -273,20 +273,20 @@ class Parser:
         with open(filename, 'r+b') as f:
             # cannot be read-only if we want to use the buffer directly
             #mm = mmap(f.fileno(), 0, access=ACCESS_READ)
-            mm = mmap(f.fileno(), 0)
+            self.mm = mmap(f.fileno(), 0)
             # print(filename, 'len', len(mm))
 
-            assert mm[-2:] == b'\xff\xff', "file should end in 0xffff"
+            assert self.mm[-2:] == b'\xff\xff', "file should end in 0xffff"
 
-            off = 0
-            while off + 2 < len(mm):
-                # print('off: {:04x}'.format(off))
-                t = self.make_class(mm, off)
-                off += sizeof(t)
-                self.controls.append(t)
+    def __iter__(self):
+        off = 0
+        while off + 2 < len(self.mm):
+            # print('off: {:04x}'.format(off))
+            t = self.make_class(self.mm, off)
+            off += sizeof(t)
+            yield t
 
 
 if __name__ == "__main__":
-    p = Parser('.')
-    for c in p.controls:
+    for c in Parser('.'):
         print(c)
