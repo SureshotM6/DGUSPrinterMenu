@@ -94,7 +94,7 @@ class TouchControl(TouchArea):
         return self.subtypes[self.subtype]
 
     def __str__(self) -> str:
-        return '{} ctl:{:<8} {}'.format(super().__str__(), self.__class__.__name__, self.vp)
+        return '{} ctl:{:<9} {}'.format(super().__str__(), self.__class__.__name__, self.vp)
 
 class Numpad(TouchControl):
     subtype_code = 0x00
@@ -131,9 +131,37 @@ class Numpad(TouchControl):
             self.vp.addr += 1
             self.vp.size = 1
         elif 4 == self.vp_format:
-            raise ValueError('8 byte integers not supported on DGUSM')
+            self.vp.size = 8
         else:
             raise ValueError(self.vp_format)
+
+class Increment(TouchControl):
+    subtype_code = 0x02
+    _pack_ = 1
+    _fields_ = [("bit_mode", Bool, 4),
+                ("vp_format", c_uint8, 4),
+                ("add", Bool),
+                ("loop_range", Bool),
+                ("step", c_uint16),
+                ("min", c_uint16),
+                ("max", c_uint16),
+                ("disable_repeat", Bool),
+                ("_reserved", c_uint8 * 3)]
+
+    def __init__(self, buf, off) -> None:
+        super().__init__(buf, off)
+        if self.bit_mode:
+            self.vp.set_bit_mode(self.vp_format)
+        else:
+            if 0 == self.vp_format:
+                self.vp.size = 2
+            elif 1 == self.vp_format:
+                self.vp.size = 1
+            elif 2 == self.vp_format:
+                self.vp.addr += 1
+                self.vp.size = 1
+            else:
+                raise ValueError(self.vp_format)
 
 class Slider(TouchControl):
     subtype_code = 0x03

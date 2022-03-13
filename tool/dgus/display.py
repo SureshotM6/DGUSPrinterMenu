@@ -24,9 +24,10 @@ class DisplayVariable(BigEndianStructure):
         return cls.from_buffer(buf, off)
 
     def __init__(self, buf, off) -> None:
+        assert self.valid == 0x5a, f'bad magic: 0x{self.valid:02x} off 0x{off:x}'
         if self.__class__ is not DisplayVariable:
             assert sizeof(self) == 0x20, '{} has bad size 0x{:x}'.format(self.__class__.__name__, sizeof(self))
-        assert self.sp_word == 0xffff, "SP not supported yet"
+        assert self.sp_word == 0xffff, f'SP not supported yet: 0x{self.sp_word:04x} off 0x{off:x}'
         self.vp = VP(self.vp_word, 2)
         self.pic = Pic(off // 0x800)
 
@@ -49,6 +50,26 @@ class Icon(DisplayVariable):
         super().__init__(buf, off)
         # would need to parse icons to get real area
         self.area = Area(self.pos, self.pos)
+
+class ImageAnimation(DisplayVariable):
+    type_code = 0x04
+    _pack_ = 1
+    _fields_ = [("pic_begin", Pic),
+                ("pic_end", Pic),
+                ("frame_time_8ms", c_uint8),
+                ("_reserved", c_uint8 * 0x13)]
+
+    def __init__(self, buf, off) -> None:
+        super().__init__(buf, off)
+        self.vp.size = 0
+
+    def __str__(self) -> str:
+        return '{} {} {} to {} every {} ms'.format(
+            self.pic,
+            self.__class__.__name__,
+            self.pic_begin,
+            self.pic_end,
+            self.frame_time_8ms * 8)
 
 class Slider(DisplayVariable):
     type_code = 0x02
@@ -125,6 +146,55 @@ class BitIcon(DisplayVariable):
         #assert self.vp_aux_ptr_word == self.vp_word + 1
         #self.vp_size = 6
 
+class Numeric(DisplayVariable):
+    type_code = 0x10
+    _pack_ = 1
+    _fields_ = [("text_pos", Coord),
+                ("color", Color),
+                ("font", c_uint8),
+                ("x_px", c_uint8),
+                ("alignment", c_uint8),
+                ("int_digits", c_uint8),
+                ("dec_digits", c_uint8),
+                ("vp_format", c_uint8),
+                ("suffix_len", c_uint8),
+                ("_suffix", c_char * 11)]
+
+    def num_chars(self):
+        decimalpoint = 1 if self.dec_digits > 0 else 0
+        return min(self.int_digits, 1) + self.dec_digits + decimalpoint
+
+    def __init__(self, buf, off) -> None:
+        super().__init__(buf, off)
+        self.suffix = self._suffix[:self.suffix_len].decode('ascii')
+        self.y_px = self.x_px * 2
+
+        self.area = Area(self.text_pos, self.text_pos)
+        self.area.end.y += self.y_px
+        self.area.end.x += self.x_px * self.num_chars()
+
+        if self.vp_format in (0, 5):
+            self.vp.size = 2
+        elif self.vp_format in (1, 6):
+            self.vp.size = 4
+        elif 2 == self.vp_format:
+            self.vp.size = 1
+        elif 3 == self.vp_format:
+            self.vp.addr += 1
+            self.vp.size = 1
+        elif 4 == self.vp_format:
+            self.vp.size = 8
+        else:
+            raise ValueError(self.vp_format)
+
+    def __str__(self) -> str:
+        return '{} {}.{} digits {}x{}px suffix \'{}\' {}'.format(
+            super().__str__(),
+            self.int_digits, self.dec_digits,
+            self.x_px, self.y_px,
+            self.suffix,
+            self.color)
+
 class Text(DisplayVariable):
     type_code = 0x11
     _pack_ = 1
@@ -154,6 +224,31 @@ class Text(DisplayVariable):
             "monospace" if self.monospace else "variable",
             self.color)
 
+class Curve(DisplayVariable):
+    type_code = 0x20
+    _pack_ = 1
+    _fields_ = [("area", Area),
+                ("y_center", Position),
+                ("value_center", c_uint16),
+                ("color", Color),
+                ("_y_scale256th", c_uint16),
+                ("channel", c_uint8),
+                ("x_spacing", c_uint8),
+                ("_reserved", c_uint8 * 6)]
+
+    def __init__(self, buf, off) -> None:
+        super().__init__(buf, off)
+        self.vp.size = 0
+        self.y_scale = self._y_scale256th / 256
+
+    def __str__(self) -> str:
+        return '{} y_center {}@{} scale {}x{:.03f} channel {} {}'.format(
+            super().__str__(),
+            self.value_center, self.y_center,
+            self.x_spacing, self.y_scale,
+            self.channel,
+            self.color)
+
 class Parser:
     @staticmethod
     def make_class(mm, off) -> object:
@@ -172,7 +267,7 @@ class Parser:
             # cannot be read-only if we want to use the buffer directly
             #mm = mmap(f.fileno(), 0, access=ACCESS_READ)
             self.mm = mmap(f.fileno(), 0)
-            # print(filename, 'len', len(mm))
+            # print(filename, 'len', len(self.mm))
 
     def __iter__(self):
         off = 0

@@ -88,6 +88,20 @@ class Coord(BigEndianStructure):
     def __sub__(self, other):
         return Coord(self.x - other.x, self.y - other.y)
 
+    def __getitem__(self, index):
+        if 0 == index:
+            return int(self.x)
+        elif 1 == index:
+            return int(self.y)
+        else:
+            raise IndexError()
+
+    def __eq__(self, other):
+        return self[0] == other[0] and self[1] == other[1]
+
+    def __le__(self, other):
+        return self[0] <= other[0] and self[1] <= other[1]
+
     def __str__(self) -> str:
         return '({},{})'.format(self.x, self.y)
 

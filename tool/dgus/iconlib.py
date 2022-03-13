@@ -38,7 +38,7 @@ class IconLib:
         self.icons = []
 
     def __str__(self) -> str:
-        return 'iconlib {} \'{}\' {} icons'.format(self.id, self.name, len(self.icons))
+        return 'iconlib {} (\'{}\' {} icons)'.format(self.id, self.name, len(self.icons))
 
 class Parser:
     def __init__(self, dirname):
