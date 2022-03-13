@@ -168,10 +168,6 @@ class Parser:
         d = Path(dirname) / 'DWIN_SET'
         filename = next(d.glob('14*.bin'))
 
-        #DisplayVariable.debug_print_sizes()
-
-        self.controls = []
-
         with open(filename, 'r+b') as f:
             # cannot be read-only if we want to use the buffer directly
             #mm = mmap(f.fileno(), 0, access=ACCESS_READ)
