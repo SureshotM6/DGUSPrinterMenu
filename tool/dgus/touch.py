@@ -171,6 +171,9 @@ class Button(TouchControl):
         else:
             self.vp.set_from_vp_format_standard(self.vp_format)
 
+    def __str__(self) -> str:
+        return '{} keycode {:04x}'.format(super().__str__(), self.keycode)
+
 class Keyboard(TouchControl):
     subtype_code = 0x06
     _pack_ = 1

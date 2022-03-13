@@ -138,6 +138,8 @@ class BitIcon(DisplayVariable):
         elif self.bitmask & 0xff00 == 0:
             self.vp.set_type(VP_Type.BYTE, low_byte=True)
 
+        self.ap = VP(self.vp_aux_ptr_word)
+        self.ap.size = 4
         #assert self.vp_aux_ptr_word == self.vp_word + 1
         #self.vp_size = 6
 

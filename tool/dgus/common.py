@@ -1,5 +1,6 @@
 from ctypes import *
 from enum import Enum, unique
+from functools import total_ordering
 import webcolors
 
 # just for better documentation and BE support. No need to define __bool__(self)
@@ -78,9 +79,16 @@ class VP:
         else:
             return 'VP {:04x} +{:02x}'.format(self.addr, self.size)
 
+    @property
+    def end(self) -> int:
+        return self.addr + self.size
+
 class Pic(c_uint16):
     def __int__(self) -> int:
         return self.value
+
+    def __eq__(self, other):
+        return int(self) == int(other)
 
     def __str__(self) -> str:
         return 'P{:<3}'.format(int(self.value))
@@ -119,9 +127,16 @@ class Color(c_uint16):
     def __str__(self) -> str:
         return '{}~{}'.format(self.hex24(), self.closest_name())
 
+@total_ordering
 class Position(c_uint16):
     def __int__(self) -> int:
         return self.value
+
+    def __eq__(self, other):
+        return int(self) == int(other)
+
+    def __lt__(self, other):
+        return int(self) < int(other)
 
     def __sub__(self, other):
         return int(self) - int(other)
@@ -132,6 +147,7 @@ class Position(c_uint16):
     def __str__(self) -> str:
         return '{:3}'.format(int(self))
 
+@total_ordering
 class Coord(BigEndianStructure):
     _pack_ = 1
     _fields_ = [("x", Position),
@@ -162,5 +178,8 @@ class Area(BigEndianStructure):
     _fields_ = [("start", Coord),
                 ("end", Coord)]
 
+    def size(self) -> Coord:
+        return self.end - self.start
+
     def __str__(self) -> str:
-        return '@{} +{}'.format(self.start, self.end - self.start)
+        return '@{} +{}'.format(self.start, self.size())
