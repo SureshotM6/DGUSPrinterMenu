@@ -1,30 +1,82 @@
 from ctypes import *
+from enum import Enum, unique
 import webcolors
 
 # just for better documentation and BE support. No need to define __bool__(self)
 class Bool(c_uint8):
     pass
 
-class VP:
-    def __init__(self, word_addr=None, size=None) -> None:
-        self.addr = word_addr * 2 if word_addr is not None else None
-        self.size = size
-        self.bit = None
+@unique
+class VP_Type(Enum):
+    TEXT = -1
+    BIT = -2
+    NONE = 0
+    BYTE = 1
+    WORD = 2
+    DWORD = 4
+    QWORD = 8
 
-    def set_bit_mode(self, bit):
-        assert self.bit is None and bit in range(16)
-        self.bit = bit
+class VP:
+    def __init__(self, word_addr=None) -> None:
+        self.addr = word_addr * 2 if word_addr is not None else None
+        self.type = None
+
+    def _set_bit_mode(self, bit):
+        assert bit in range(16)
         self.size = 1
         if bit < 8:
-            self.addr_bytes += 1
+            self.addr += 1
         else:
             bit -= 8
+        self.bit = bit
+
+    def set_type(self, type: VP_Type, *, bit=None, len=None, low_byte=None):
+        assert self.type is None, f'type {self.type} already set'
+        self.type = type
+        if VP_Type.TEXT == type:
+            self.size = len
+        elif VP_Type.BIT == type:
+            self._set_bit_mode(bit)
+        elif VP_Type.BYTE == type:
+            if low_byte:
+                self.addr += 1
+            self.size = 1
+        else:
+            self.size = type.value
+
+    def set_from_vp_format_standard(self, vp_format: c_uint8):
+        if 0 == vp_format:
+            self.set_type(VP_Type.WORD)
+        elif 1 == vp_format:
+            self.set_type(VP_Type.BYTE, low_byte=False)
+        elif 2 == vp_format:
+            self.set_type(VP_Type.BYTE, low_byte=True)
+        else:
+            raise ValueError(vp_format)
+
+    def set_from_vp_format_numeric(self, vp_format: c_uint8):
+        if vp_format in (0, 5):
+            self.set_type(VP_Type.WORD)
+        elif vp_format in (1, 6):
+            self.set_type(VP_Type.DWORD)
+        elif 2 == vp_format:
+            self.set_type(VP_Type.BYTE, low_byte=False)
+        elif 3 == vp_format:
+            self.set_type(VP_Type.BYTE, low_byte=True)
+        elif 4 == vp_format:
+            self.set_type(VP_Type.QWORD)
+        else:
+            raise ValueError(vp_format)
 
     def __str__(self) -> str:
-        if self.bit is None:
-            return 'VP {:04x} +{:02x}'.format(self.addr, self.size)
-        else:
+        if self.type == VP_Type.BIT:
             return 'VP {:04x} b{}'.format(self.addr, self.bit)
+        elif self.type == VP_Type.TEXT:
+            return 'VP {:04x} T{:02x}'.format(self.addr, self.size)
+        elif self.type == VP_Type.NONE:
+            return ''
+        else:
+            return 'VP {:04x} +{:02x}'.format(self.addr, self.size)
 
 class Pic(c_uint16):
     def __int__(self) -> int:

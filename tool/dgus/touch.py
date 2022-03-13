@@ -121,19 +121,7 @@ class Numpad(TouchControl):
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        if 0 == self.vp_format:
-            self.vp.size = 2
-        elif 1 == self.vp_format:
-            self.vp.size = 4
-        elif 2 == self.vp_format:
-            self.vp.size = 1
-        elif 3 == self.vp_format:
-            self.vp.addr += 1
-            self.vp.size = 1
-        elif 4 == self.vp_format:
-            self.vp.size = 8
-        else:
-            raise ValueError(self.vp_format)
+        self.vp.set_from_vp_format_numeric(self.vp_format)
 
 class Increment(TouchControl):
     subtype_code = 0x02
@@ -151,17 +139,9 @@ class Increment(TouchControl):
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
         if self.bit_mode:
-            self.vp.set_bit_mode(self.vp_format)
+            self.vp.set_type(VP_Type.BIT, bit=self.vp_format)
         else:
-            if 0 == self.vp_format:
-                self.vp.size = 2
-            elif 1 == self.vp_format:
-                self.vp.size = 1
-            elif 2 == self.vp_format:
-                self.vp.addr += 1
-                self.vp.size = 1
-            else:
-                raise ValueError(self.vp_format)
+            self.vp.set_from_vp_format_standard(self.vp_format)
 
 class Slider(TouchControl):
     subtype_code = 0x03
@@ -174,15 +154,7 @@ class Slider(TouchControl):
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        if 0 == self.vp_format:
-            self.vp.size = 2
-        elif 1 == self.vp_format:
-            self.vp.size = 1
-        elif 2 == self.vp_format:
-            self.vp.addr += 1
-            self.vp.size = 1
-        else:
-            raise ValueError(self.vp_format)
+        self.vp.set_from_vp_format_standard(self.vp_format)
 
 class Button(TouchControl):
     subtype_code = 0x05
@@ -195,17 +167,9 @@ class Button(TouchControl):
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
         if self.bit_mode:
-            self.vp.set_bit_mode(self.vp_format)
+            self.vp.set_type(VP_Type.BIT, bit=self.vp_format)
         else:
-            if 0 == self.vp_format:
-                self.vp.size = 2
-            elif 1 == self.vp_format:
-                self.vp.size = 1
-            elif 2 == self.vp_format:
-                self.vp.addr += 1
-                self.vp.size = 1
-            else:
-                raise ValueError(self.vp_format)
+            self.vp.set_from_vp_format_standard(self.vp_format)
 
 class Keyboard(TouchControl):
     subtype_code = 0x06
@@ -232,7 +196,7 @@ class Keyboard(TouchControl):
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
         #FIXME: is this +1 correct?
-        self.vp.size = (self.vp_len_words + 1) * 2
+        self.vp.set_type(VP_Type.TEXT, len=(self.vp_len_words + 1) * 2)
         if self.use_len_prefix:
             self.vp.addr -= 2
             self.vp.size += 2

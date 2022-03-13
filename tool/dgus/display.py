@@ -28,7 +28,7 @@ class DisplayVariable(BigEndianStructure):
         if self.__class__ is not DisplayVariable:
             assert sizeof(self) == 0x20, '{} has bad size 0x{:x}'.format(self.__class__.__name__, sizeof(self))
         assert self.sp_word == 0xffff, f'SP not supported yet: 0x{self.sp_word:04x} off 0x{off:x}'
-        self.vp = VP(self.vp_word, 2)
+        self.vp = VP(self.vp_word)
         self.pic = Pic(off // 0x800)
 
     def __str__(self) -> str:
@@ -50,6 +50,7 @@ class Icon(DisplayVariable):
         super().__init__(buf, off)
         # would need to parse icons to get real area
         self.area = Area(self.pos, self.pos)
+        self.vp.set_type(VP_Type.WORD)
 
 class ImageAnimation(DisplayVariable):
     type_code = 0x04
@@ -61,7 +62,7 @@ class ImageAnimation(DisplayVariable):
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        self.vp.size = 0
+        self.vp.set_type(VP_Type.NONE)
 
     def __str__(self) -> str:
         return '{} {} {} to {} every {} ms'.format(
@@ -101,15 +102,7 @@ class Slider(DisplayVariable):
 
         self.area = Area(self.pos, self.end)
 
-        if 0 == self.vp_format:
-            self.vp.size = 2
-        elif 1 == self.vp_format:
-            self.vp.size = 1
-        elif 2 == self.vp_format:
-            self.vp.addr += 1
-            self.vp.size = 1
-        else:
-            raise ValueError(self.vp_format)
+        self.vp.set_from_vp_format_standard(self.vp_format)
 
 class BitIcon(DisplayVariable):
     type_code = 0x06
@@ -138,11 +131,13 @@ class BitIcon(DisplayVariable):
         self.area = Area(self.pos, self.pos)
 
         # compute size based on self.bitmask
-        if self.bitmask & 0xff == 0:
-            self.vp.size = 1
+        if bin(self.bitmask).count('1') == 1:
+            self.vp.set_type(VP_Type.BIT, bit=self.bitmask.bit_length() - 1)
+        elif self.bitmask & 0xff == 0:
+            self.vp.set_type(VP_Type.BYTE, low_byte=False)
         elif self.bitmask & 0xff00 == 0:
-            self.vp.size = 1
-            self.vp.addr += 1
+            self.vp.set_type(VP_Type.BYTE, low_byte=True)
+
         #assert self.vp_aux_ptr_word == self.vp_word + 1
         #self.vp_size = 6
 
@@ -173,19 +168,7 @@ class Numeric(DisplayVariable):
         self.area.end.y += self.y_px
         self.area.end.x += self.x_px * self.num_chars()
 
-        if self.vp_format in (0, 5):
-            self.vp.size = 2
-        elif self.vp_format in (1, 6):
-            self.vp.size = 4
-        elif 2 == self.vp_format:
-            self.vp.size = 1
-        elif 3 == self.vp_format:
-            self.vp.addr += 1
-            self.vp.size = 1
-        elif 4 == self.vp_format:
-            self.vp.size = 8
-        else:
-            raise ValueError(self.vp_format)
+        self.vp.set_from_vp_format_numeric(self.vp_format)
 
     def __str__(self) -> str:
         return '{} {}.{} digits {}x{}px suffix \'{}\' {}'.format(
@@ -214,7 +197,7 @@ class Text(DisplayVariable):
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        self.vp.size = self.length
+        self.vp.set_type(VP_Type.TEXT, len=self.length)
 
     def __str__(self) -> str:
         return '{} {:2} chars {}x{}px {} {}'.format(
@@ -238,7 +221,7 @@ class Curve(DisplayVariable):
 
     def __init__(self, buf, off) -> None:
         super().__init__(buf, off)
-        self.vp.size = 0
+        self.vp.set_type(VP_Type.NONE)
         self.y_scale = self._y_scale256th / 256
 
     def __str__(self) -> str:
